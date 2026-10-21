@@ -129,9 +129,9 @@
   （1.21.10 亦走 3.4.3：`_343` 三件 + 3.4.x 兼容 shim）。
   > 历史：2026-09-10 时 1.21.10 曾用 gen=3.3.3、natives 为后缀式 `liblwjgl{,_opengl,_stb}_333.so`；整套命名于
   > 2026-09-14 改为世代号紧跟基名，旧 `_333` 代同日移除。
-- 现行 `meowlwjgls/libs/arm64-v8a/` 共 **11 so**：LWJGL 现代单代 **3**（`_343`）+ **legacy `liblwjgl.so`** + tinyfd
-  + **SDL3 `libSDL3.so`** + `libshaderc.so` + `libspirv-cross.so` + **gl4es** + openal + freetype；
-  `natives.manifest` **11 项**（tag 仅 `3.4.3` 与 `common`）；无 SONAME 冲突。
+- 现行 `meowlwjgls/libs/arm64-v8a/` 共 **12 so**：LWJGL 现代单代 **3**（`_343`）+ **legacy `liblwjgl.so`** + tinyfd
+  + **VMA `liblwjgl_vma.so`** + **SDL3 `libSDL3.so`** + `libshaderc.so` + `libspirv-cross.so` + **gl4es** + openal + freetype；
+  `natives.manifest` **12 项**（tag 仅 `3.4.3` 与 `common`）；无 SONAME 冲突。
   （历史 2026-09-10～09-13：现代两代 6 + 其余 = **14 so**，manifest **12 项**。）
 - **legacy LWJGL2（2026-09-11）**：`liblwjgl.so` 走 `Sys.loadLibrary("lwjgl")`，服务 MC 1.6.x–1.12.2；
   1.6.4 / 1.7.10 / 1.8.9 / 1.12.2 实机进主界面/进世界/键鼠/聊天/全屏全通过（[`LWJGL2-legacy适配-复盘.md`](LWJGL2-legacy适配-复盘.md) §1）。

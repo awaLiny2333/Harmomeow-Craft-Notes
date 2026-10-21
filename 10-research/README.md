@@ -9,8 +9,7 @@
 |---|---|
 | [`原生崩溃排查-方法论与复盘.md`](原生崩溃排查-方法论与复盘.md) | ★**本工程自己的排查套路**（非外部项目）：拿到崩溃的速查顺序 / 平台与工具链事实 / 物证判读（含**三类良性噪声**）/ A/B 纪律 / 规避工程 / 交付 review / 战役坑清单与反面清单（2026-09-16） |
 | [`homolauncher.md`](homolauncher.md) | HomoLauncher（鸿蒙版 Pojav）深度分析 —— 最直接参考 |
-| [`amethyst.md`](amethyst.md) | Amethyst-Android 深度分析 —— 渲染/JNI 教科书 |
-| [`amethyst-源码深潜.md`](amethyst-源码深潜.md) | Amethyst v3 源码级深潜：双 VM / JVM 启动 / GLFW stub / EGL / 输入 / 可对照源码清单 —— 移植参照 |
+| [`amethyst.md`](amethyst.md) | Amethyst-Android 深度分析（含行级源码定位）：模块 / JNI 原生层 / 双 VM / JVM 启动 / GLFW stub / EGL / 输入 / 驱动家族 |
 | [`hmcl-存储模型.md`](hmcl-存储模型.md) | HMCL 参考：**架构总览**（模块 / 平台抽象 / 参数生成 / 下载 / 账户 / 游戏模型 / UI）+ **持久化模型**（配置文件 / 已添加文件夹 / 账户 / 每实例参数 / 隔离落盘 / 迁移）—— 源码级 |
 | [`启动器目录模型与版本隔离.md`](启动器目录模型与版本隔离.md) | **`.minecraft` 目录模型 / 版本隔离 / 安装流程**（HMCL 新版源码级 + PCL 磁盘实证 + 官方基线与各家横向对照） |
 | [`pojav系-启动渲染对照.md`](pojav系-启动渲染对照.md) | **Pojav 系跨项目**：Amethyst × HomoLauncher 启动链 + 渲染/surface + 驱动映射 + HOML 资产清单 |

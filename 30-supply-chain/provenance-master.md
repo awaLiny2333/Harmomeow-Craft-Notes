@@ -191,7 +191,7 @@
 
 ## 7. 指针与运行布局
 - **网络下载产物来源（URL/日期/官方 sha1/实测 sha256/落盘/是否随包）**：见 §4.2。
-- 逐 so 名录：[`per-so-catalog.md`](per-so-catalog.md)；SBOM/校验和：[`assets-digests.txt`](assets-digests.txt)（**v45**）。
+- 逐 so 名录：[`per-so-catalog.md`](per-so-catalog.md)；SBOM/校验和：[`assets-digests.txt`](assets-digests.txt)（**当前 SBOM**）。
 - 运行资产：el1 `meowjre/libs/arm64/`（JRE **29**〔口径见 [`../00-current/现状基线.md`](../00-current/现状基线.md) §1：含 `libc6`/`libjli`〕 + 自研桥/jrebridge）；`meowlwjgls/libs/arm64-v8a/`（**12 so**：现代 LWJGL 单代 3（`_343`）+ legacy `liblwjgl.so` + `liblwjgl_tinyfd.so` + VMA `liblwjgl_vma.so` + SDL3 + shaderc + spirv-cross + gl4es + openal + freetype；`natives.manifest` **12 项**，tag 仅 `3.4.3` 与 `common`；旧 `_333` 三件已于 2026-09-14 移除）；
   rawfile（entry）：`meowcraft_extras.tar.gz`（**1 jar（LWJGL）+ 随包 ASM 9.9.1 ×5**：`lwjgl-3.4.3.jar`〔现代单代〕+ `asm9/{asm,asm-analysis,asm-commons,asm-tree,asm-util}-9.9.1.jar`〔子目录，启动期覆盖实例声明的旧 ASM〕；`lwjgl-3.3.3.jar` 已于 2026-09-14 退役；`launcher.jar`/`gson-for-launcher.jar` 已于 **2026-10-01** 随 MeowLauncher 退役移除；tarball **6 members，12,403,320 B，sha256 `7c8aa392…`**）+ `meow_jre.tar.gz`（JRE 数据）+ `oshi-overrides/`（**10**）。
 - 设计/流程档：[`launcher净室-设计.md`](../90-archive/launcher净室-设计.md)、[`GLFW净室桥-设计.md`](../20-design/render/GLFW净室桥-设计.md)、[`LWJGL3自编-阶段1历史.md`](../90-archive/LWJGL3自编-阶段1历史.md)、`../40-adaptation/*`。

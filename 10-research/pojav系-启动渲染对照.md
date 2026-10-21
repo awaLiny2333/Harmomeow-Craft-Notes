@@ -101,14 +101,10 @@ libspirv-cross-c-shared.so、libc++_shared.so。
 完整 `libjvm/libjli/libjava/libawt/libfontmanager/...` + tar.xz 含 bin/java、lib/modules、cacerts。
 jre25 向下兼容 Java 21 字节码 → **只跑 1.21.10 时 jre25 即可，jre17 可砍**。
 
-## 7. HomoLauncher 的鸿蒙细节证据
+## 7. HomoLauncher 的鸿蒙细节
 
-- `-Dos.name=Linux -Dos.version=harmonyos -Dcpu.name=harmonyos`：伪装 Linux 过 1.21.10 的 OS rules。
-- `-Dglfwstub.windowWidth/Height`：把 UI 层尺寸传给 Java GLFW stub。
-- `dl_open(glibName)` 在 `jvm_Launcher()` 前执行：先把渲染库 dlopen 进进程。
-- `OHOS_DL_DIR/OHOS_JAVA_HOME/LD_LIBRARY_PATH/jli_path`：告知 native 层 JRE 库位置。
-- XComponent surfaceId 字符串 parseInt → `bridge.surfaceChanged(id, w, h)`（w/h 写死，真实尺寸走 glfwstub）。
-- 权限：`ALLOW_WRITABLE_CODE_MEMORY`（JVM JIT 需可写可执行内存）、`LOCK_WINDOW_CURSOR`（抓鼠标）、
-  `FILE_ACCESS_PERSIST`（目录授权持久化）、`NDK_START_SELF_UI_ABILITY`（native 拉起 UI，用途未确认）。
-- 1.21.10 明确受支持：resfile/game/versions.txt 列到 1.21.10；caciocavallo17/HMCLTransformerDiscovery/
-  log4j2-1.12 等现代组件就位。
+HOML 的 JVM 启动、环境变量、权限与资源清单以 [`homolauncher.md`](homolauncher.md) 为准
+（§3 JVM 启动 / §8 资源清单 / §9 关键权限）；本节只留**跨项目对照**才需要的一句话结论：
+HOML 把 Amethyst 的 `libjli + JLI_Launch`、`dlopen(renderer)`、GLFW stub 尺寸注入
+（`-Dglfwstub.windowWidth/Height`）与 `-Dos.name=Linux` 伪装原样搬到了 ArkTS + NAPI；
+XComponent surfaceId 走 `parseInt → surfaceChanged(id,w,h)`，真实尺寸由 glfwstub 覆盖。

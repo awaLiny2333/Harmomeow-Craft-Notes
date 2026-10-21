@@ -1,336 +1,13 @@
-# Meowcraft runtime assets digest (SBOM baseline)
-# NOTE (2026-09-16): the digests below are of the **repo / recipe outputs** (the files in the repo tree).
-#   When the meowjre HSP is packed, native libs are **stripped**, so the copies *inside* the .hsp differ in
-#   size and hash (expected, NOT tampering; verified on all of them): e.g. libjvm.so 27,707,752 -> 22,264,392 B,
-#   symtab 64681 -> 0 symbols; libc6.so / libjli.so / libjava.so likewise. Compare against the repo files.
-# v48 2026-10-01: libgl4es.so 再换件（**根因修复的收尾加固**）。自证 tag `2026-10-01-ctxlistid`
-#   -> `2026-10-01-ctxlistid2`（`deltas/glcore/src/gl/fog.c` 的 `MEOW_GL4ES_BUILD_TAG`，即设备日志
-#   `[meow-gl4es] build=…` 那行）。在 v47（显示列表 id 撞号根因修复）基础上多做四处收尾：
-#   ① `src/gl/drawing.c` **补第三处叶锁** —— `glMultiDrawArrays` 的 QUADS 立即路径索引缓存也加
-#      `pthread_mutex`（该缓存真实存在但**全仓无调用者** ⇒ 证据上不可达，仍加固）；并把两处注释里写错的
-#      函数名改正为 `glDrawArraysInstanced`（原写作 `glDrawArrays`，实为实例化孪生件）。
-#   ② `src/gl/gl4es.c` 给 `glGenLists()` 的**扫描+插入**套**文件级** `glgenlists_lock`（依据：FML 1.7.10 splash
-#      在**第二线程**驱动第二个共享 EGL 上下文、与主线程整段加载期并发 ⇒ 共享 `headlists` 的 scan+insert
-#      真可达；id 撞号本身已由 v47 的"看键"根因修复解决，本项只加固 scan+insert）。
-#   ③ `src/gl/list.c` OOM 分支补 `mode_init_cap = 0`（否则 `mode_inits` 分配失败后 `list_add_modeinit()`
-#      跳过 realloc、经 NULL 指针写 `mode_inits[0]`）。
-#   ④ `src/gl/list.c` 措辞改正：`mode_inits` 由"结构体里**唯一**被 memcpy 共享却被 free 的数组"改为
-#      "该族里**目前只处理的一个**成员"（同族还有 `vbo_array`/`vbo_indices`/`ind_lines`/`final_colors`）。
-#   产物 `stuffs/research/gl4es/out/libgl4es.so`，sha256 = `993672d9…`，**1,292,568 B**（supersedes
-#   `444bc805…`〔v47, tag `2026-10-01-ctxlistid`；产物已存档 `stuffs/research/gl4es/out-ctxlistid-v48/libgl4es.so`〕，
-#   同为 1,292,568 B）；**delta-content-sha256 = `c8c21d68…`**（上一版 `7a015405…`）；
-#   **同 SDK + 同构建路径 2× 干净重建 + 哈希一致**，`strings` 自证产物内含 `2026-10-01-ctxlistid2`。
-#   已同步 `libs/meowlwjgls/libs/arm64-v8a/libgl4es.so` + `natives.manifest`（tag `common`）。
-#   **实机验收：已验证（2026-10-01）** —— 用户导出日志 `Harmomeow-Craft-Launcher/.logs/This PC-1790866511-hilog.txt`
-#   实测：`[meow-gl4es] build=2026-10-01-ctxlistid2` ✓、**`shared ctx created` 出现**（FML splash 第二上下文
-#   开着 ⇒ 修复在病态条件下成立）✓、无 `CROSS-CTX`、`lockCursor rc=0` ×8 无失败 ✓、四个症状（天上巨三角 /
-#   错色块 / 缺胳膊少腿 / 第一人称手）用户实机确认正常 ✓。根因/判定取证见工作区根
-#   `stuffs/research/optifine-legacy-render/{CTX-LIST-ROOTCAUSE.md,ENTITY-ARRAYS.md}`。
-#   残留待办见 notes/00-current/已知限制与待解.md（§C 其余共享表无锁 / renderlist 数组成员无引用计数 /
-#   glMultiDrawArrays QUADS 循环疑上游笔误 / meowctx M-2）。
-# v47 2026-10-01 [SUPERSEDED by v48; 中间版]: libgl4es.so 再换件（**根因修复**）。我们的 gl4es delta `tools/gl4es/deltas/glcore/`
-#   新增三个**整份覆盖**的上游文件：
-#   ① `src/gl/gl4es.c` —— `glGenLists()` 的占位检测由「**看值（NULL）**」改为「**看键**」（新增
-#      `gl4es_glListReserved`）⇒ **修"两个 EGL 上下文发出同一批 display list id"**（FML splash 第二上下文 +
-#      主上下文：`headlists` 共享、`glstate->list.count` 每上下文、`glEndList` 无条件 `free_renderlist` 再覆盖
-#      共享槽 ⇒ id 撞号与顶替；症状 = 实体部件被拉成巨大错边形 / 部件缺失 / 错色块 / 第一人称手消失，且
-#      **splash 结束后仍坏**）。**这是根因修复。**
-#   ② `src/gl/list.c` —— `append_calllist()` 的 `mode_inits` 深拷贝（结构体里唯一"被 memcpy 共享却被
-#      `free_renderlist` 无条件 free"的数组）⇒ 修双释放/悬垂。**硬化。**
-#   ③ `src/gl/drawing.c` —— `GL_QUADS` 立即路径的**进程级静态索引缓存**加叶锁（`glDrawArrays` 与
-#      `glMultiDrawArrays` 两处）⇒ 消并发竞态。**硬化。**
-#   自证 tag = `2026-10-01-ctxlistid`（`deltas/glcore/src/gl/fog.c` 的 `MEOW_GL4ES_BUILD_TAG`，即设备日志
-#   `[meow-gl4es] build=…` 那行）。产物 `stuffs/research/gl4es/out/libgl4es.so`，sha256 = `444bc805…`，
-#   **1,292,568 B**（supersedes `35a81e4c…`〔v44, tag `2026-09-30-ctxiso-tls3`〕，同为 1,292,568 B）；
-#   **delta-content-sha256 = `7a015405d91d3ecc9c7a9a0793547c94cb8978735ade02305484c1e4383b0f96`**（上一版记录的是
-#   `f449b779…`）；**同 SDK + 同构建路径 2× 干净重建 + 哈希一致（本次实测）**，`strings` 自证产物内含
-#   `2026-10-01-ctxlistid`。已同步 `libs/meowlwjgls/libs/arm64-v8a/libgl4es.so` + `natives.manifest`
-#   （tag `common`）。**该中间版未单独验收**（其后 v48 在同一路径上实机验证通过）。根因/判定取证见工作区根
-#   `stuffs/research/optifine-legacy-render/{CTX-LIST-ROOTCAUSE.md,ENTITY-ARRAYS.md}`。
-# v32 2026-09-18: F2 + VMA natives synced into the SBOM (meowlwjgls flat dir is now 12 .so, was 11).
-#   liblwjgl_343.so: F2 __aligned_alloc alignment clamp (musl posix_memalign returns EINVAL for
-#     alignment < sizeof(void*)); sha 16298280.. -> 2a6fcf99.. (pre-F2 backup = fixes/liblwjgl_343.so.pre-f2).
-#   liblwjgl_vma.so: NEW self-built pristine VMA native, manifest tag `common`, sha 479a619f..
-#     (recipe tools/lwjgl/build_lwjgl_vma.sh --release; the --diagnostic build is NOT shipped).
-#   Measured this session with sha256sum against libs/meowlwjgls/libs/natives.manifest (12/12 match).
-# v45 2026-09-30: meowcraft_extras.tar.gz 新增**随包 ASM 9.9.1**（5 件 `org.ow2.asm`，落在 `asm9/`
-#   **子目录**）—— 修 Forge 1.19.4 在随包 JRE 26 上的启动失败（`Unsupported class file major version 70`：
-#   它声明的 ASM 9.7.1 读不懂 JDK 26 的类文件；判据见 `MinecraftLauncher.needsAsmOverride`）。子目录是
-#   **必须**的：平铺形态（vanilla/Fabric/legacy）的 `-cp "<dir>/*"` 通配**不递归** ⇒ 随包 ASM 不会混进
-#   它们的 classpath（避免与 Fabric 自带 ASM 互相遮蔽）。tarball 8 members，12,674,361 B（supersedes
-#   12,309,585 B），sha256 = `cb0c0918…`（见下方 tar 行）；**EXTRAS_VERSION 升
-#   `20260930-bundled-asm-9.9.1`**（触发设备重抽）。来源 = Maven Central 官方 5 件（逐件 `.sha1` 校验；
-#   逐件**完整 URL** + 官方 sha1 + 实测 sha256 + 大小见 `provenance-master.md` §4.2），
-#   与本机树 `stuffs/test-forge/libraries/org/ow2/asm/9.9.1/*` **逐字节 `cmp` 一致**。组包：`pack_extras.py
-#   --base-tar <旧 tar> --drop-prefix asm9 --jar lwjgl-3.4.3.jar=<built> --jar asm9/<name>=<path>×5
-#   --require lwjgl-3.4.3.jar`（**同入参 2× 重建 `cmp` 一致、且与随包件 `cmp` 一致**；完整命令见
-#   `provenance-master.md` §4.2）。
-# v46 2026-10-01: meowcraft_extras.tar.gz 摘除 `launcher.jar` 与 `gson-for-launcher.jar`（随方案 A「MeowLauncher
-#   退役」）⇒ **6 members**，**12,403,320 B**（supersedes 12,674,361 B），sha256 = `7c8aa392…`（见下方 tar 行）；
-#   **EXTRAS_VERSION 升 `20261001-drop-meow-launcher`**（触发设备重抽缓存）。成员 = `lwjgl-3.4.3.jar`
-#   （`970dbec8…`, 12,953,332 B，未变）+ `asm9/{asm,asm-analysis,asm-commons,asm-tree,asm-util}-9.9.1.jar`
-#   （同 v45，未变）。组包：`pack_extras.py --base-tar <旧 tar> --drop-prefix launcher --drop-prefix
-#   gson-for-launcher --jar lwjgl-3.4.3.jar=<built> --jar asm9/<name>=<path>×5 --require lwjgl-3.4.3.jar`
-#   （完整命令见 `provenance-master.md` §4.2）。下方 `launcher.jar` 段（v15–v37）与 `gson-for-launcher.jar`
-#   段（v26）标为**历史**（不再随包）。
-# v44 2026-09-30: libgl4es.so 再换件：**M-2 可观测化**（share-group root 被遗忘而仍有子存活时打 warn；
-#   **不改共享语义**，不做引用计数/换 owner）。自证 tag `2026-09-29-ctxiso-tls2` -> `2026-09-30-ctxiso-tls3`
-#   （`deltas/glcore/src/gl/meowctx.c` 的 `MEOW_CTX_BUILD_TAG`）。行为无变化（只多一条日志 + 注释）：
-#   当首个被绑定的上下文（共享组 root）先于其子被 `meow_gl4es_forget` 遗忘，而注册表里仍有活跃子状态时，
-#   打一条稳定英文 warn（`[meow-ctx] WARN: share-group root forgotten while N child state(s) still alive;
-#   the next NewGLState(NULL) starts a NEW object-table group (EGL share group split) - known limitation ...`）。
-#   此时后续新绑定的上下文会走 `NewGLState(NULL)` 起**第二个独立对象表组**，违反 EGL 共享契约（两个互不可见
-#   的组）；触发条件 = **首个被绑定的上下文（root）先于其子被销毁**（正常进程退出不触发：`meowTerminate` 先
-#   销毁全部次级上下文再 forget primary ⇒ live==0）。触发条件与"本轮为何不做引用计数"写在 `meowctx.c` 文件头
-#   与 `meow_gl4es_forget()` 的 M-2 注释里。
-#   同批（桥 `libs/meowcraftbridge/egl_gl.c`，**M-1 修正**；此项需 app 原生重建 → `libmeowcraftbridge.so`，
-#   **不是** libgl4es.so）：per-context hook 解析从"首次成功 eglMakeCurrent"**解耦** —— `egl_ensure_context()`
-#   的 gl4es(FPE) 分支现在先 `gl4es_ctx_hook_state()`（仅 dlopen + dlsym，安全于 initialize_gl4es 之前），
-#   且 `meowCreateSharedContext()` 的硬门改为**三态**（UNKNOWN/ABSENT/PRESENT：UNKNOWN 先尝试解析再判）；
-#   修复"共享上下文先于任何 makeCurrent 创建时被**无条件误拒**（且打印误导文案 `old libgl4es.so?`，即便设备上
-#   装的是新件）"。失败/拒绝日志现区分 `hook ABSENT ... (hook-less/foreign build)` 与 `hook UNRESOLVED ...
-#   (libgl4es.so could not be loaded to resolve it)`；"成功 makeCurrent 后 bind、失败不置 current"不变。
-#   libgl4es 侧产物：ea15f779.. (v43, 1,292,568 B) -> 35a81e4c.. (1,292,568 B)；**同 SDK + 同构建路径 2× 干净
-#   重建 + `cmp` 逐字节一致（本次会话实测）**；`DT_NEEDED` 仅 `libc.so`、`SONAME=libGL.so.1`、三个
-#   `meow_gl4es_*` 仍在 `.dynsym`。
-#   构建脚本自检：`build_gl4es_meow.sh` 现打印 `delta-content-sha256`（delta 树内容摘要），并在末尾与
-#   `artifact-sha256` 并列输出，支持 `--expect-digest H`（或 `$MEOW_GL4ES_EXPECT_DIGEST`）断言产物哈希，
-#   避免"改了 delta 忘重打/重装 .so"。delta-content-sha256（本次）= f449b7791cea1407f2bd76de9d63d39f99bcad04db54149080a725c62acc4f58。
-# v36 2026-09-29: launcher.jar -> **--release 8**（class 52），sha 72426aca.. -> 46630f26..，21,191 -> 19,869 B。
-#   理由 = **共享件地线规则**：launcher.jar 被**两套 JRE 共用**（现代 OpenJDK 26 / legacy OpenJDK 8），
-#   必须能在**最老那套**上加载；`MeowClassLoader` 是 `-Djava.system.class.loader` 指定的类 ⇒ VM 初始化
-#   早期就要加载，class 61 会让 legacy 套直接 `UnsupportedClassVersionError`（真机实测）。
-#   extras tar 内容随之变更 ⇒ EXTRAS_VERSION 升 `20260929-jre8-compat`（触发设备重解压）。
-#   （v32 的 javac 步仍由人跑；pack + gson-shade 由 tools/meow-launcher/finalize_for_meowcraft.sh 自校验。）
-# v43 2026-09-29: libgl4es.so 再换件：**上下文注册表回退 + forget 语义修正**（同一"每 EGL 上下文隔离"
-#   特性内的两处 correctness 修补；**无新开关**）。自证 tag `2026-09-29-ctxiso-tls` -> `2026-09-29-ctxiso-tls2`
-#   （`deltas/glcore/src/gl/meowctx.c` 的 `MEOW_CTX_BUILD_TAG`）。
-#   (a) `meow_gl4es_bind()` 的 OOM / 注册表满回退不再把 `default_glstate` 装给一个**有活跃上下文**的线程
-#       （那会破坏"default_glstate 只属'本线程无上下文'"这一不变量）⇒ 改为**保留线程原状态**并大声告警；
-#   (b) `meow_gl4es_forget()` 的注释纠正：primary 上下文**在进程退出时确实被销毁**（`egl_gl.c` 的
-#       `meowTerminate`；只有**应用级** `ContextGL.destroy()` 才被忽略），并**新增**在 `meowTerminate` 里
-#       对 primary 调 `meow_gl4es_forget`。`_forget` 仍**不 free glstate**（别的线程 TLS 可能仍指向它）。
-#   桥侧同批（`libs/meowcraftbridge/egl_gl.c`）：`MEOW_ALLOW_SHARED_CTX` **默认翻转成"允许"**（未设/空 ⇒ 允许；
-#   `=1` 仍允许；`=0`/`false` ⇒ 拒绝），并新增**硬门** —— FPE 渲染下 per-context hook 不可用（旧
-#   libgl4es.so）时**无条件拒绝**共享上下文（`shared ctx refused: per-context gl4es state hook unavailable
-#   (old libgl4es.so?)`）。默认允许已实机验证（FML splash 打开跑至干净退出）：**2026-09-30 00:56 默认路径（env 未设）** 与 **2026-09-29 23:26 显式 `=1`** 两跑。
-#   f5c2d61f.. (v42, 1,292,568 B) -> ea15f779.. (1,292,568 B)；**同 SDK + 同构建路径 3× 干净重建 + `cmp`
-#   逐字节一致（本次会话实测）**。Per-version / per-device status -> 现状基线.md §5 item 26。
-# v42 2026-09-29: libgl4es.so 换件：**每 EGL 上下文隔离 glstate**（TLS `glstate` + 上下文注册表）。
-#   背景/根因：FML 1.7.10 控制台 splash 在**两个线程上各跑一个 EGL 上下文**（splash 线程 = 主上下文；
-#   主线程 = 共享上下文，整个加载期重叠），而 gl4es 只有一个进程级 `glstate` ⇒ 数据竞争 ⇒ 原生崩溃
-#   （SIGSEGV，DFX signo(11), tid 42832, 2026-09-29 22:57）。修法：`glstate` 改 **`__thread`**
-#   （`gl4es.h` / `glstate.c` 整份覆盖，`default_glstate` 提到 `glstate` 之前保证任何线程非 NULL），
-#   新增 `gl/meowctx.{c,h}` = 上下文注册表 + 导出 `meow_gl4es_bind/_unbind/_forget`
-#   （`-fvisibility=hidden` ⇒ 必须 `EXPORT`，桥用 `dlsym` 取、**不加链接期依赖**）；首绑上下文 = 共享组根
-#   （拥有共享对象表），其后每个上下文 `NewGLState(根, 0)`（共享表、独立事务状态）= EGL 共享上下文语义。
-#   详见 notes/20-design/launch/Forge-splash-崩溃根因与共享上下文修复.md §5.3 与 已知限制与待解.md C11。
-#   自证 tag = **`2026-09-29-ctxiso-tls`**（`deltas/glcore/src/gl/meowctx.c` 的 `MEOW_CTX_BUILD_TAG`；
-#   首次绑定的 `[meow-ctx] build=… tls=1 registry=on` 行）；5c01567d.. (v41, 1,259,800 B)
-#   -> f5c2d61f.. (1,292,568 B)。桥侧（`libs/meowcraftbridge/egl_gl.c`）在每次成功 `eglMakeCurrent` 后调
-#   `meow_gl4es_bind/_unbind/_forget`；旧件缺符号时打一条英文日志并永久降级（不崩）；共享上下文路径仍在
-#   `MEOW_ALLOW_SHARED_CTX` 之后。**本次会话实测**：`DT_NEEDED` 仅 `libc.so`、无 RUNPATH/RPATH、
-#   `SONAME=libGL.so.1`、`__emutls_get_address` weak-internal（OHOS clang 默认**模拟 TLS**，**不新增
-#   DT_NEEDED**）、三个 `meow_gl4es_*` 已导出；**同 SDK + 同构建路径 2× 干净重建 + `cmp` 逐字节一致**。
-#   ⚠️ **本轮未做**共享对象表（texture/buffers/glsl/headlists/fpe_cache/fbo/sampler/query）的并发加固
-#   ⇒ 仍有**概率性**风险；**待实机验证**（配 `MEOW_ALLOW_SHARED_CTX=1` 的共享上下文路径）。Per-version /
-#   per-device status -> 现状基线.md §5 item 26。
-# v41 2026-09-29: LWJGL2 shim JNI 形参口径对齐 + gl4es 雾强制模式改写缓冲可重入化（两件同批换装）。
-#   (a) liblwjgl.so：`LinuxContextImplementation` 整族 JNI 形参口径对照上游声明逐个对齐（关键项
-#       `nReleaseCurrentContext` 第 1 个实参是 **peer handle**（`peer_info_handle`）而非 context handle
-#       —— 旧码把它当上下文读，靠"release 走 window==NULL 时桥在解引用前短路"才无害；另有
-#       `nMakeCurrent`/`nSetSwapInterval`/`nDestroy`/`nSwapBuffers`/`getDisplay` 形参名对齐）后重编：
-#       b6f9106c.. (323,368 B) -> 73ac4aa8.. (323,336 B)。契约出处
-#       ref/lwjgl/src/java/org/lwjgl/opengl/LinuxContextImplementation.java。
-#   (b) libgl4es.so：把"强制距离模式"用的改写缓冲由 `static GLfloat s_forceMode[4]` 改为**每次调用的
-#       栈上副本**（语义不变、可重入、行为不再依赖调用顺序）；自证 tag
-#       `2026-09-29-cleanup` -> `2026-09-29-fogfix-reentrant`：87fc358b.. (1,260,408 B)
-#       -> 5c01567d.. (1,259,800 B)。
-#   (c) 本次会话实测随包值（`sha256sum` + `install_natives.sh --verify` 全绿；12/12 match）；gl4es
-#       定稿件另做同 SDK + 同构建路径 2× 干净重建 + `cmp` 逐字节一致。产品目录
-#       `stuffs/research/{lwjgl2,gl4es}/out*`（`stuffs/tmp` 与 `stuffs/lwjgl2` 已随工作区归并消失）。
-# v40 2026-09-29: SBOM 与实物对齐 + 第二套 JRE（meowjrelegacy / Java 8）首次登记。
-#   (a) libgl4es.so 换件：雾兜底版（自证 tag `2026-09-29-cleanup`）取代 r16 —— f96d54a5.. (v38, 1,255,704 B)
-#       -> 87fc358b.. (1,260,408 B)；r16 降级为「雾改动前的历史基准」。本次会话实测随包值。
-#   (b) liblwjgl.so：契约修正（共享上下文 + `nCreate` 形参）后重编 df886466.. (322,600 B)
-#       -> b6f9106c.. (323,368 B)；中间态 93931548..（契约修正前单次构建）。
-#   (c) 新增 meowjrelegacy 段：第二套 JRE = Java 8 / legacy 的 25 个 .so + meow_jre_legacy.tar.gz
-#       （32,333,885 B）；随包 so 总口径 29 + 25 + 12 = 66。
-#   (d) 两份换件的复现校验状态是 LIVE 事实 -> 见 notes/00-current/现状基线.md §5 item 26 与
-#       Harmomeow-Craft-Launcher/tools/{gl4es,lwjgl2}/README.md（本轮只做实物复算，未做重建校验）。
-# v35 2026-09-22: libgl4es.so -> r9 (glslang per-stage auto-bind cross-stage remap BY NAME: UBO blocks +
-#   opaque samplers, mc_remap_block_bindings / mc_remap_opaque_bindings; + shader compile/link failure
-#   diagnostics). Supersedes r6/r7/r8; no new env switch. Verification status is a LIVE fact -> pointer only
-#   (notes/00-current/现状基线.md §5 item 26), not asserted here.
-# v31 2026-09-16: independent four-domain review of the whole campaign (46189a6..c2d2a42), and its fixes.
-#   Reviewers (separate agents, read-only) covered: the LWJGL overlay + generator, the ArkTS policy
-#   layer, the native forwarder/guard, and a cross-cutting blast-radius/claims audit. All four returned
-#   SOUND WITH FINDINGS. What they VERIFIED as sound: the generator reproduces the committed overlay
-#   byte-for-byte from the official tag 3.4.3 file; the native slot contract is untouched
-#   (ADDRESS_BUFFER_SIZE 2270 both, identical long/boolean declaration order, caps.get block identical);
-#   the edit-6 regex wraps exactly the 459 capability flags and misses no capability shape; the jar
-#   inside the shipped tar equals the built jar; SBOM v30 matched reality; no leftovers/no new
-#   disk-or-network access.
-#   Fixed in this round (review findings):
-#     (a) RendererInit.parseVersion() was a racy, one-shot, fail-closed cache (`versionParsed` set before
-#         the values were published; a failure was cached for the whole session) -> values are now computed
-#         into locals and published (volatile + synchronized) only on SUCCESS, so a failure is retried and
-#         a losing thread can never report "GL 1.0"; the six caches are volatile;
-#     (b) -Dmeow.maskExtensions and MEOW_MASK_EXTENSIONS are now UNIONed - the property used to REPLACE the
-#         env, silently dropping the default compute mask from the LWJGL half while Mesa still hid it; the
-#         asymmetry (only the env drives the Mesa applier) is now documented;
-#     (c) the stdout/stderr forwarder's `pending` could grow without bound on a newline-free burst
-#         (pre-existing, but this campaign had just touched that code) -> it now flushes past 64 KiB with
-#         an explicit marker, so nothing is silently lost;
-#     (d) gen_glcap.py's critical checks raise SystemExit instead of `assert` (`python3 -O` strips asserts);
-#     (e) docs corrected, including a wrong rationale OF OURS: the version-group guards are NOT
-#         "permanently false because Mesa never advertises OpenGLxy" - LWJGL itself synthesises
-#         "OpenGL<major><minor>" for the CURRENT version only (GL.java), which made OpenGL11..41 false
-#         (under-report) while OpenGL43..46 false is correct.
-#   Device re-verified after the fixes: guards ON; mask = [GL_ARB_compute_shader]; GL_VERSION len=47 +
-#   [4.2 (Core Profile) Mesa 25.0.1 (git-69e48f9182)] + groups OpenGL11..OpenGL42 on, higher off;
-#   culling 0 / instancing 26; GL_INVALID_VALUE 0; no crash; long forwarded lines intact; no flush markers.
-#   lwjgl-3.4.3.jar rebuilt (6185 classes); EXTRAS_VERSION=20260916-lwjgl-review; extras repacked.
-# v30 2026-09-16: fixed the JVM-stdout log truncation at BOTH layers (it was ours, not the platform's).
-#   Symptom: `RendererInit: GL_VERSION=[4.2 ...] -> 4.2; version groups ...` reached hilog as a
-#   90-BYTE line ending right after the Mesa string; the tail was searched for in the whole capture
-#   (`-> 4.2`, `higher off`, `OpenGL11..OpenGL42` = 0 hits) -> it was never logged at all, so this was
-#   not an export artefact.
-#   Platform ruled out first (per docs): hilog caps one message at 4096 bytes and drops over-quota
-#   entries WHOLESALE - neither matches an 85-byte cut (faqs-performance-analysis-kit-58).
-#   Root cause: MemoryUtil.memASCII(addr, len) decodes `length` BYTES, so the NUL terminator (and
-#   whatever follows it in memory) survived into our Java string; the forwarder then handed the line
-#   to OH_LOG_Print as a `%s` argument, i.e. as a C string, which silently ends at that NUL.
-#   Fix: (a) Java - cut the decoded string at the first NUL, print the self-evidence in short lines
-#   with a `len=` diagnostic; (b) the forwarder (meowjrebridge.cpp) - sanitise control characters
-#   (NUL -> space, never swallow the rest) and chunk lines at 1024 bytes (well under the 4096 cap).
-#   Device evidence: `GL_VERSION len=47` + `GL_VERSION=[4.2 (Core Profile) Mesa 25.0.1
-#   (git-69e48f9182)]` (closing bracket present) + `groups 4.2; OpenGL11..OpenGL42 on, higher off`
-#   (the previously lost line) + guards ON + mask [GL_ARB_compute_shader] + culling 0 / instancing 26
-#   + GL_INVALID_VALUE 0.
-#   lwjgl-3.4.3.jar rebuilt (6185 classes); EXTRAS_VERSION=20260916-lwjgl-logfix; extras repacked.
-# v29 2026-09-16: version groups now come from the REAL GL_VERSION, not from a pseudo-extension.
-#   Restoring upstream's guards (v28) over-corrected: Mesa (Zink) NEVER advertises the "OpenGLxy"
-#   pseudo-extension names (no such string in libgallium-25.0.1.so, while the GL_ARB_* names ARE
-#   there), so `if (!ext.contains("OpenGL46")) return false;` is permanently FALSE on this stack =>
-#   OpenGL11..OpenGL42 all became false too (under-report; the context really is 4.2). Both
-#   extremes are wrong: deleting the guards over-reports (4.2 claimed as 4.6, which is what sent
-#   Flywheel down the compute path), keeping them under-reports.
-#   Fix: version groups ask RendererInit.allowsVersionGroup(ext, maj, min) = advertised name OR
-#   atLeastVersion(maj, min); the version is read during capabilities construction through LWJGL's
-#   own API (provider.getFunctionAddress("glGetString") + JNI.invokeP(0x1F02, addr) +
-#   memASCII(ptr, 64)), pure Java, no native change. Extensions keep the upstream contract
-#   (advertised + resolvable). gl4es keeps the permissive probe (strict = OFF).
-#   Device evidence: `RendererInit: GL_VERSION=[4.2 (Core Profile) Mesa 25.0.1 ...] -> 4.2;
-#   version groups OpenGL11..OpenGL42 on, higher off` (this line is truncated by the hilog
-#   forwarder at ~90 chars - known cosmetic issue, split it into short lines next time);
-#   guards ON; mask = [GL_ARB_compute_shader]; game: culling 0 / instancing 26 / GL_INVALID_VALUE 0.
-#   lwjgl-3.4.3.jar rebuilt (6185 classes); EXTRAS_VERSION=20260916-lwjgl-glversion; extras repacked.
-# v28 2026-09-16: LWJGL jar now (a) reports the GL context HONESTLY and (b) carries a general
-#   capability-mask interface.
-#   (a) Upstream gates every version group / extension on what the driver ADVERTISES
-#       (`if (!ext.contains("OpenGL46")) return false;`). Our overlay used to DELETE those 234
-#       guards process-wide, so on this GL 4.2 device OpenGL46 came out true (Mesa's dispatch
-#       resolves the 4.6 entry points: glSpecializeShader/glPolygonOffsetClamp/
-#       glMultiDraw*IndirectCount all present in libgallium-25.0.1) and Flywheel's
-#       `if (CAPABILITIES.OpenGL46) return true;` shortcut took the compute path -> driver crash.
-#       The guards are back, but runtime-conditional: RendererInit.strictCapabilities() is ON
-#       everywhere EXCEPT the gl4es compat context (which advertises a low version while higher
-#       entry points still resolve). gen_glcap.py edit 2.
-#   (b) The mask interface: gen_glcap.py edit 5 (ext filter) + edit 6 (wrap all 459 capability
-#       flags with `&& !RendererInit.isMasked("<field>")`); policy = DATA (MEOW_MASK_EXTENSIONS env
-#       or -Dmeow.maskExtensions), decided in ONE place by the launcher -> two appliers:
-#         1. LWJGL capability flags  -> mods take their own designed fallback path (no reliance on
-#            their exception handling);
-#         2. Mesa MESA_EXTENSION_OVERRIDE -> a consumer that bypasses LWJGL still gets a clean GL
-#            error instead of a driver crash.
-#       Default policy (Kirin + modern render path) = mask GL_ARB_compute_shader only.
-#   Why the flag level is the only one that works (measured): check_ARB_compute_shader is a pure
-#   function-slot probe with no ext.contains term and Zink does export glDispatchCompute, so
-#   an ext filter, MESA_EXTENSION_OVERRIDE and a GL-layer filter were ALL inert (3 attempts).
-#   Verified on device (2026-09-16 21:23): `capability guards ON` + `armed: [GL_ARB_compute_shader]`
-#   (no OpenGL46 masking) + Flywheel compiles `pipeline/instancing` (culling 0) + GL_INVALID_VALUE 0
-#   -> the version groups are honest on their own. See
-#   notes/20-design/render/1.21.1-崩溃-两条链与随包规避.md §1.
-#   lwjgl-3.4.3.jar rebuilt (same 6185 classes); EXTRAS_VERSION=20260916-lwjgl-honest; extras repacked.
-# v27 2026-09-16: self-built libjvm.so now carries the MEOW_MALLOC_SLACK tail-slack mitigation
-#   (os::malloc gets a 4096 B tail slack by default; env MEOW_MALLOC_SLACK / MEOW_MALLOC_SLACK_MIN
-#   tune it at runtime, 0 = off; zero disk writes). Why: Flywheel's light engine indexes 18^3
-#   (max 5831) into LightStorage's 4096-byte light region -> each write can overrun ~1.7 KB; glibc's
-#   malloc slack hides it, musl's tight allocation smashes neighbouring JVM C-heap objects
-#   (SymbolTable) -> crash at 0x5d00000008 (HeapBase+8) or JVM self-report
-#   "Cannot resize table: Node hash code has changed possibly due to corruption of the contents".
-#   Single-variable A/B: slack off -> crash within 4 min (twice); slack on -> 9 min + 7.5 min clean;
-#   narrowing it to allocations >= 1 KB FAILS (crash 16 s after JVM start) -> keep it FULL SIZE.
-#   See notes/20-design/render/1.21.1-崩溃-两条链与随包规避.md. Only the self-built libjvm.so
-#   changed; official 26 libs / libc6 / libjli / modules.slim / data tar unchanged -> data token
-#   26.0.2.1+1-7-r1 NOT bumped.
-# v26 2026-09-16: fixed two NON-SELF-CONSISTENT shipped jars (both declared `Multi-Release: true`
-#   but had no META-INF/versions/** — they are repacked with META-INF stripped). bootstraplauncher
-#   1.1.2 (used by NeoForge 1.20.2) calls SecureJar.from on every classpath entry; securejarhandler
-#   2.1.24 readMultiReleaseInfo() then Files.walk("META-INF/versions") -> UnionFileSystem
-#   NoSuchFileException -> launch died. (2.0.2, used by 1.21.1, guards it, hence it only showed on
-#   1.20.2.) Root fix: strip `Multi-Release` wherever we drop META-INF (build_lwjgl_jar.sh,
-#   relocate_gson.py, and the shared packer tools/oshi/pack_jar.py now enforces it).
-#   Both jars are now SCRIPT-PRODUCED again (previously a one-off rezip, which broke the
-#   "reproducible" claim): lwjgl-3.4.3.jar from build_lwjgl_jar.sh, gson-for-launcher.jar from
-#   relocate_gson.py. Full chain (base tar -> relocate_gson.py -> pack_extras.py) is byte-identical
-#   on re-run. EXTRAS_VERSION=20260916-script-rebuild; extras tar repacked.
-# v25 2026-09-14: modern LWJGL3 consolidated to a SINGLE generation (3.4.3) serving MC 1.13-1.21.x
-#   AND >=1.22 — deltas/overlay-3.4.3/ now carries 5 compat shims (struct mallocStack x3,
-#   STBImageResize.nstbir_resize_uint8, tinyfd boolean messageBox), because MC 1.13.2-1.21.11
-#   statically links members 3.4.x removed. Member-level check (tools/lwjgl/mc_lwjgl_compat_check.py):
-#   0 missing members / 0 missing classes against the rebuilt jar. Retired: lwjgl-3.3.3.jar +
-#   liblwjgl{,_opengl,_stb}_333.so (flat dir 14 -> 11 .so). Component HAR renamed meowlwjgl3 -> meowlwjgls.
-#   EXTRAS_VERSION=20260915-lwjgl-tagname; extras tar repacked.
-#   Native names: generation tag right after the base — liblwjgl_343{,_opengl,_stb}.so (was suffix-style
-#   liblwjgl_opengl_343.so / liblwjgl_stb_343.so; liblwjgl_343.so unchanged). Name set in lockstep by
-#   tools/lwjgl/install_natives.sh (naming) + overlay org/lwjgl/system/MeowBundledNameMapper (lookup).
-# v24 2026-09-13: bundled JRE -> official OpenJDK 26.0.2.1 (glibc) fully self-held (zero black-box):
-#   26 official libs binary-patched in place (.dynstr) + self-built libc6.so / libjli.so / libjvm.so
-#   (source = UPDATE repo openjdk/jdk26u @ jdk-26.0.2.1-ga == official SOURCE d55edf1cba61;
-#   SOURCE_DATE_EPOCH=1784133400). Data = official 26.0.2.1 slimmed via jlink (43 modules).
-#   HSP module / JRE id / rawfile renamed VERSION-NEUTRAL: meowjre / meow_jre / meow_jre.tar.gz
-#   (JRE version lives only in the data token 26.0.2.1+1-7-r1). Recipe: tools/jre26/.
-#   (Supersedes the old external-precompiled meowjre25 section, which had been stale since v9.)
-# v23 2026-09-11: account system (offline): launcher.jar rebuilt — offline UUID derived in Java
-#   (UUID.nameUUIDFromBytes("OfflinePlayer:"+name)), user_type always msa; extras tar repacked.
-#   EXTRAS_VERSION=20260911-accounts. (finalize_for_meowcraft.sh made layout-aware for the multi-gen tar.)
-# v22 2026-09-11: legacy LWJGL2 (liblwjgl.so, MC 1.6.x-1.12.2) + self-built gl4es (<=1.16) +
-#   SDL3/shaderc/spirv-cross + tinyfd shipped; meowlwjgl3 flat dir then 14 .so (now meowlwjgls, 11 .so; _333 removed 2026-09-14). LWJGL jars re-packed
-#   for the GLCapabilities reportMissing fix (both generations). EXTRAS_VERSION=20260911-glcap; extras tar repacked.
-# v21 2026-09-10: fullscreen — GLFW stub glfwSetWindowMonitor now forwards to the launcher
-#   (CallbackBridge.nativeSetFullscreen -> native flag -> ArkTS drives the real GameAbility window);
-#   lwjgl-3.3.3.jar + lwjgl-3.4.3.jar rebuilt (both gens), extras tar repacked.
-#   EXTRAS_VERSION=20260910-fullscreen. build_lwjgl_jar.sh default --work is now version-scoped.
-# v20 2026-09-10: lwjgl-3.3.3.jar rebuilt to carry MeowBundledNameMapper (all generations use the
-#   uniform suffix + mapper); extras tar repacked. Symmetric per-generation deltas/overlay-<gen>/.
-# v19 2026-09-10: LWJGL natives renamed to UNIFORM suffixes (liblwjgl*_333 / _343); install_natives.sh
-#   owns the flat dir + natives.manifest. (hvigor packs only top-level libs/<abi>/*.so.)
-# v18 2026-09-10: LWJGL multi-generation (lwjgl-3.3.3 + lwjgl-3.4.3 jars & natives; name-mapper);
-#   OpenAL Soft 1.24.3 (ALC_SOFT_system_events); libffi 3.8.0. MC 26.1.2 playable (>=1.22 unlocked).
-# v17 2026-09-10: naming purge (pojav/HOML/Amethyst/meowbridge -> meowcraft/meowcraftbridge); bundle 旧名 homl_extras.tar.gz 已改名 meowcraft_extras.tar.gz.
-# v16 2026-09-10: lwjgl.jar GLFW overlay + bridge = SELF-BUILT clean-room (de-Pojav/LGPL); launcher drops android/util.
-# v15 2026-09-10: launcher.jar = clean-room meow.launcher (tools/meow-launcher; NO GPL/Pojav/HMCL; meow.gson shaded). In-game OK.
-# v14 2026-09-10: lwjgl.jar slimmed to 8 modules (dropped lwjglx + nanovg/vma/shaderc); 4075 classes; in-game OK.
-# v13 2026-09-10: lwjgl.jar rebuilt on Maven RELEASE 3.3.3 base, lwjglx dropped (4183 classes); in-game OK.
-# v12 2026-09-10: lwjgl.jar = stock LWJGL 3.3.3-snapshot 12 modules (Amethyst-bundled PREBUILT, not compiled here)
-#   + Pojav/Amethyst overlay (we compile) merged; liblwjgl{,_opengl,_stb}.so self-built (ref/lwjgl3 @3.3.3) -> source-level; render OK.
-#   (Stronger provenance: point --official at Maven release 3.3.3; 5/12 modules not shipped by MC.)
-# v11 2026-09-10: launcher.jar self-built & fat-trimmed (41 classes, byte-reproducible; sh tools/launcher/rebuild_for_meowcraft.sh + finalize).
-#   v10: launcher.jar self-built. v9: meowjre25 30 + meowlwjgl3 5; gson-for-launcher.jar.
-#   Historical v2-v4 (module name "jrelib", 40/51 so snapshots) preserved in git history (0b4c06f etc.).
-# v6 2026-09-09: libopenal.so self-built (tools/openal, OHOS port of OpenAL Soft 1.23.1) -> source-level.
-# usage: recompute and diff to detect asset drift
-# NOTE reproducibility: native (.so) builds embed the absolute --out path in .dynstr, so
-#   byte-identical rebuilds require the SAME absolute build paths; other paths -> same
-#   function, different hash. OpenAL 1.24.3 & 3.4.3 natives: 3x same-path rebuilds cmp-identical.
-#   lwjgl-3.4.3.jar v18 (7fd1b3c8…): 2x same-path rebuilds cmp-identical (2026-09-10). The v22 shas
-#   below are single builds (not yet re-verified byte-identical).
-#   libffi.a: 3x rebuilds cmp-identical, path-independent (== shipped input).
+# Runtime assets digest (SBOM baseline)
+
+Digests are of the **repo / recipe outputs** (files in the repo tree).
+When the meowjre HSP is packed, native libs are **stripped**, so the copies
+inside the `.hsp` differ in size and hash (expected, not tampering).
+Measured examples: `libjvm.so` 27,707,752 → 22,264,392 B; symtab 64,681 → 0 symbols
+(`libc6` / `libjli` / `libjava` likewise). Compare against the repo files.
+
 ## meowjre HSP native (libs/meowjre/libs/arm64-v8a/, 29 so)
-# 26 = official OpenJDK 26.0.2.1 lib, binary-patched in place (ELF .dynstr NEEDED rewrite; tools/jre26/patch_dynstr.py)
-# 3  = self-built by tools/jre26: libc6.so (glibc->musl shim) + libjli.so + libjvm.so (OpenJDK 26 @ jdk-26.0.2.1-ga)
+# 26 official OpenJDK 26.0.2.1 (dynstr-patched) + 3 self-built (libc6 / libjli / libjvm)
 951944869822b6f7fbc685d220d3d71448ee36dcd30c131e245d4f7d7eb70150  libs/meowjre/libs/arm64-v8a/libawt.so
 8a440e3686bb3d20ba686fc790f142533bd6791d27dc3346743e617a71906126  libs/meowjre/libs/arm64-v8a/libawt_headless.so
 c8b06fadd6f074b8bab3069bddb537bf503ac815575b46021b6ef05121a5a723  libs/meowjre/libs/arm64-v8a/libc6.so [self-built: tools/jre26, glibc->musl compat shim; UNVERSIONED exports]
@@ -361,10 +38,7 @@ d84c9a388fc19ac6847f2532d7a077ec1ee4c8b135a62b146469b5d5bf872eea  libs/meowjre/l
 d48e19af29e3f4f07f9a47ff63442ec79857ac5102c555bb96f0f2e834ddb509  libs/meowjre/libs/arm64-v8a/libverify.so
 1e671daf78c17094fcee1c654a943c8639af1556908b03bd437ada49deb10526  libs/meowjre/libs/arm64-v8a/libzip.so
 ## meowjrelegacy HSP native (libs/meowjrelegacy/libs/arm64-v8a/, 25 so)
-# 第二套 JRE = Java 8（legacy；服务需要 Java 8 的实例，见 notes/00-current/现状基线.md §1）。
-#   来源 = Eclipse Adoptium Temurin 8（jdk8u504-b01, linux/aarch64, glibc, image_type=jdk）数据件
-#     + 自编 libjvm.so（musl，源码 ref/jdk8u，OHOS 分体补丁）与 libc6.so/libjli.so 等桥接件；配方 tools/jre8/。
-# 25 = libs/meowjrelegacy/libs/arm64-v8a/*.so（口径同 A 段：主仓 libs/*/libs/arm64-v8a/）
+# Temurin 8 data + self-built libjvm (musl) / libc6 / libjli
 512e5edd571835962efc392b9c0d11330a39cc863f081c8d61cc7696f91f4ee1  libs/meowjrelegacy/libs/arm64-v8a/libawt.so
 4593273d99e5f4cb542abf864573e52dfc68f73da3c0d25a0d9af1ccfdf8917f  libs/meowjrelegacy/libs/arm64-v8a/libawt_headless.so
 5d3ca113ec5455a9672f5d2ccd3e67d8ea86637762eba4006d09766a04807145  libs/meowjrelegacy/libs/arm64-v8a/libc6.so
@@ -390,72 +64,29 @@ de4708c9db185316e054e802e1fec44a4a4fc26648dbb9181a63eafd7fb4fdb1  libs/meowjrele
 c457e5797eaf97e51ad4a869499af404e1b60909638dca0669bde9d1a577d506  libs/meowjrelegacy/libs/arm64-v8a/libunpack.so
 31524b2c632838ec4b5abea4907a5131f1f5c9ae64e1449b7750b15cb7abf0ba  libs/meowjrelegacy/libs/arm64-v8a/libverify.so
 e179bbd994d77f7a1012453cf1e8269f9381f42572c2c727a9769170e1f1ee0c  libs/meowjrelegacy/libs/arm64-v8a/libzip.so
-342a6a0a353ab66b34fee7600640d4b09e70675051539fce3af42bf2cf345215  entry/src/main/resources/rawfile/meow_jre_legacy.tar.gz [v40 2026-09-29: 32,333,885 B; 第二套 JRE（Java 8 / legacy）数据 tar（Temurin 8 jdk8u504-b01 + 自编件）；data token 1.8.0_504-b01-r1]
+342a6a0a353ab66b34fee7600640d4b09e70675051539fce3af42bf2cf345215  entry/src/main/resources/rawfile/meow_jre_legacy.tar.gz [32,333,885 B; 第二套 JRE（Java 8 / legacy）数据 tar（Temurin 8 jdk8u504-b01 + 自编件）；data token 1.8.0_504-b01-r1]
 ## meowlwjgls HAR native (libs/meowlwjgls/libs/arm64-v8a/, 12 so = LWJGL modern single generation 3.4.3 (generation tag right after the base: liblwjgl_343{,_opengl,_stb}.so) + legacy LWJGL2 + SDL3/shaderc/spirv-cross/tinyfd/vma + gl4es + openal + freetype)
-# 口径 = 主仓 libs/*/libs/arm64-v8a/ 下的 so：meowjre 段 29 + meowjrelegacy 段 25 + 本段 12 = 66；复算 sha256sum libs/*/libs/arm64-v8a/*.so
 e41fe6b927f3d6605548473a6468000855ab9ad9239ef8d6ad988a3b2e0f1167  libs/meowlwjgls/libs/arm64-v8a/libfreetype.so [self-built: tools/freetype, FreeType 2.13.3; .text/.rodata == old ext]
-# LWJGL 3.3.3 generation (REMOVED 2026-09-14; was MC 1.17-1.21.x, suffix _333)
-# 0b1dc8ae01a2048ae5b2d73d0173647b48661159e232e17d9731c9fcb2242269  libs/meowlwjgls/libs/arm64-v8a/liblwjgl_333.so [REMOVED 2026-09-14; was self-built LWJGL core @3.3.3; exports 1961]
-# 4541eeb35db63f401eb79d251ccfb63afcc70f48cad6f5c5b21a7e2c1c2fdbda  libs/meowlwjgls/libs/arm64-v8a/liblwjgl_opengl_333.so [REMOVED 2026-09-14; was self-built LWJGL opengl @3.3.3; exports 2228]
-# a8d2392d22995501cde95badea8117e83d40a371e6c4474482946573de8ad9e8  libs/meowlwjgls/libs/arm64-v8a/liblwjgl_stb_333.so [REMOVED 2026-09-14; was self-built LWJGL stb @3.3.3; exports 215]
-# LWJGL 3.4.3 generation (modern single generation; serves MC 1.13-1.21.x and >=1.22; generation tag right after the base)
-2a6fcf990b4da92d71dc44e09cdc22d12991bfa9468ac52310015d921ed20161  libs/meowlwjgls/libs/arm64-v8a/liblwjgl_343.so [v32: self-built LWJGL core @3.4.3 + F2 alignment clamp (musl posix_memalign EINVAL for alignment < sizeof(void*)); exports 2207; linked libffi 3.8.0; pre-F2 was 16298280..]
+2a6fcf990b4da92d71dc44e09cdc22d12991bfa9468ac52310015d921ed20161  libs/meowlwjgls/libs/arm64-v8a/liblwjgl_343.so [self-built LWJGL core @3.4.3 + F2 alignment clamp (musl posix_memalign EINVAL for alignment < sizeof(void*)); exports 2207; linked libffi 3.8.0; pre-F2 was 16298280..]
 e1f1413b8be099895b093aa5bcfe171ba96fdd9ae6d347d0a665b20d74d836ce  libs/meowlwjgls/libs/arm64-v8a/liblwjgl_343_opengl.so [self-built: LWJGL opengl @3.4.3; exports 2270]
 8eb4a1b8391b6bd95ba5ccf39126f091ac8de58afe0e3be259183e4bbf59343a  libs/meowlwjgls/libs/arm64-v8a/liblwjgl_343_stb.so [self-built: LWJGL stb @3.4.3; exports 224]
-# audio
 fececaeea7f785c8f47a9b4f804421b3922524f0c2df87419d21256a680b2d6c  libs/meowlwjgls/libs/arm64-v8a/libopenal.so [self-built: tools/openal, OpenAL Soft 1.24.3, OHAudio default; 33 alc exports incl ALC_SOFT_system_events]
-73ac4aa87eae85c92955552258ac69f2b54df2a21a7f794ff390a9cbffede577  libs/meowlwjgls/libs/arm64-v8a/liblwjgl.so [v41 2026-09-29: **当前随包件** = 契约修正后再对齐整族 JNI 形参口径（`nReleaseCurrentContext` 第 1 实参是 peer handle（`peer_info_handle`）而非 context handle，另 `nMakeCurrent`/`nSetSwapInterval`/`nDestroy`/`nSwapBuffers`/`getDisplay` 形参名对齐；见 ref/lwjgl/src/java/org/lwjgl/opengl/LinuxContextImplementation.java）后重编，323,336 B；supersedes b6f9106c.. (v40, 323,368 B) / df886466.. (2026-09-11, 322,600 B) / 93931548.. (契约修正前单次构建, 323,368 B)；self-built: tools/lwjgl2, LWJGL2 @2df01dd7 + OHOS port; serves MC 1.6.x-1.12.2; JNI_VERSION=19；**本次会话实测**]
+73ac4aa87eae85c92955552258ac69f2b54df2a21a7f794ff390a9cbffede577  libs/meowlwjgls/libs/arm64-v8a/liblwjgl.so [当前随包件：JNI 形参口径对齐后重编，323,336 B；self-built: tools/lwjgl2（LWJGL2 @2df01dd7 + OHOS port）；JNI_VERSION=19；serves MC 1.6.x–1.12.2；本次会话实测]
 f2b126caa061b91d43ca71c1b01949b458c5d6cd7db8aec40014989398c2e95e  libs/meowlwjgls/libs/arm64-v8a/liblwjgl_tinyfd.so [self-built: tools/lwjgl, LWJGL tinyfd; eagerly loaded by MC>=1.22; gen-agnostic]
-479a619f99d0f74023a4361c3863976b21ca3dad4c0cac304b0b76cbe7335002  libs/meowlwjgls/libs/arm64-v8a/liblwjgl_vma.so [v32: self-built PRISTINE VMA (recipe tools/lwjgl/build_lwjgl_vma.sh --release; manifest tag `common`); libc++ statically linked, DT_NEEDED=libc.so only; the --diagnostic build (64cba35f..) is NOT shipped]
+479a619f99d0f74023a4361c3863976b21ca3dad4c0cac304b0b76cbe7335002  libs/meowlwjgls/libs/arm64-v8a/liblwjgl_vma.so [self-built PRISTINE VMA (recipe tools/lwjgl/build_lwjgl_vma.sh --release; manifest tag `common`); libc++ statically linked, DT_NEEDED=libc.so only; the --diagnostic build (64cba35f..) is NOT shipped]
 5fe4d5d44517d8f4bd1a37c5cef76518a977b7ca4e2f97b13bb81791c8d01e59  libs/meowlwjgls/libs/arm64-v8a/libSDL3.so [self-built: tools/sdl, SDL3 fork release-3.4.14 + ohos video/mouse driver + Vulkan WSI (SDL_ohosvulkan.c) + window-focus events + clipboard write (SDL_ohosclipboard.c) + URL opener (src/misc/ohos/SDL_sysurl.c) + motion/button diagnostics 2026-09-23 (WARP-ignored hard 1/s gate; exitgrab keeps cLast when win==NULL so sync retries); 2,054,656 B; MC>=26.3]
 0cff346503fc23ccd84e12c56a817a114f0a8cbf9435adc55e12603d8101c6ed  libs/meowlwjgls/libs/arm64-v8a/libshaderc.so [self-built: tools/shaderc; renderpearl MC>=26.3]
 93ad99077aad8fa59dfe3b253ea783b2d3484894d0bbf34b195e526d505f71d7  libs/meowlwjgls/libs/arm64-v8a/libspirv-cross.so [self-built: tools/shaderc; MC>=26.3]
-993672d9659135cf24d259beda00bf264b025c6ab6204d3ca610628611a45562  libs/meowlwjgls/libs/arm64-v8a/libgl4es.so [v48 2026-10-01: **当前随包件 = 双 GL 上下文「显示列表 id 撞号」根因修复版（含收尾加固）**，自证 tag `2026-10-01-ctxlistid2`（`deltas/glcore/src/gl/fog.c` 的 `MEOW_GL4ES_BUILD_TAG`，即设备 `[meow-gl4es] build=…` 自证行；`glGenLists()` 占位检测由**看值（NULL）**改**看键**（新增 `gl4es_glListReserved`）⇒ 修"两个 EGL 上下文发出同一批 display list id"（FML splash 第二上下文 + 主上下文：`headlists` 共享、`glstate->list.count` 每上下文、`glEndList` 无条件 `free_renderlist` 再覆盖共享槽 ⇒ 症状 = 实体部件被拉成巨大错边形/部件缺失/错色块/第一人称手消失，splash 结束后仍坏；**这是根因修复**）；另硬化 `list.c` `append_calllist()` 的 `mode_inits` 深拷贝（修双释放/悬垂）+ OOM 分支补 `mode_init_cap = 0` + 措辞"唯一"→"该族里目前只处理的一个"、`gl4es.c` `glGenLists()` 扫描+插入套 `glgenlists_lock`、`drawing.c` `GL_QUADS` 立即路径进程级静态索引缓存三处加叶锁（含补的第三处 `glMultiDrawArrays` 缓存；消并发竞态）；**实机验收：已验证（2026-10-01；含 `shared ctx created` 病态条件 + 四症状正常）**；见 v48 段）；1,292,568 B；**本次会话实测** sha256sum；synced to libs/meowlwjgls/libs/natives.manifest (tag common)；supersedes 444bc805.. (v47 ctxlistid, 自证 tag `2026-10-01-ctxlistid`, 1,292,568 B, 产物存档 out-ctxlistid-v48) / 35a81e4c.. (v44 tls3, 自证 tag `2026-09-30-ctxiso-tls3`, 1,292,568 B) / ea15f779.. (v43 tls2, 自证 tag `2026-09-29-ctxiso-tls2`, 1,292,568 B) / f5c2d61f.. (v42 tls, 自证 tag `2026-09-29-ctxiso-tls`, 1,292,568 B) / 5c01567d.. (v41 雾兜底版, 自证 tag `2026-09-29-fogfix-reentrant`, 1,259,800 B) / 87fc358b.. (v40, 自证 tag `2026-09-29-cleanup`, 1,260,408 B) / f96d54a5.. (v38 = r16 2026-09-27, 1,255,704 B) / r15 (0c2075e7..) / r14 (3e152749..) / r13 (24cd5f33..) / r11 (aac4a628..) / r12 (7babd51c..) / r10 (2c2b6f09..) and earlier r6-r9. **r16 = 雾改动前的历史基准**：MC_BUILD_TAG=2026-09-27-r16 (multidraw: core base-vertex loop; ext diag) —— glMultiDrawElementsBaseVertex 走 ES 3.2 core glDrawElementsBaseVertex 循环（设备 ...EXT 变体不可移植：手机 OpenGLWrapper 静默吞掉且不置 GL 错误）+ 一次性相关扩展诊断；builds on r13 (honor glBindAttribLocation / glBindFragDataLocation) + r10 entry-coverage。self-built: tools/gl4es --delta deltas/glcore; gl4es v1.1.7 + GL3 core backend (GL 3.2/3.3 -> native GLES 3.2, env MEOW_GL3); serves legacy/<=1.16 (FPE) AND 1.17-1.21.x (core)。雾兜底版**同 SDK + 同构建路径 2× 干净重建 + `cmp` 逐字节一致（本次会话实测）**；Per-version / per-device verification status -> see notes/00-current/现状基线.md §5 item 26; reports -> stuffs/research/gl4es/{noop-audit,fix-review,perf-directions}/]
-# dir owned by tools/lwjgl/install_natives.sh; see libs/meowlwjgls/libs/natives.manifest (tag -> file -> sha256)
+993672d9659135cf24d259beda00bf264b025c6ab6204d3ca610628611a45562  libs/meowlwjgls/libs/arm64-v8a/libgl4es.so [当前随包件：tag 2026-10-01-ctxlistid2（显示列表 id 撞号根因修复 + 收尾加固），1,292,568 B；self-built: tools/gl4es --delta deltas/glcore；serves legacy/≤1.16 (FPE) 与 1.17–1.21.x (core, MEOW_GL3)；验收见 现状基线 §5 第 26 条]
 ## meowcraft_extras jars (entry rawfile -> cacheDir/mc-cp)  [bundle name: meowcraft_extras.tar.gz]
-# lwjgl-<ver>.jar = Maven release <ver> (8 modules) + SELF-BUILT clean-room overlay; the
-#   GLFW overlay loads "libmeowcraftbridge.so" by name (no binary patch). Reproduce:
-#   sh tools/lwjgl/build_lwjgl_jar.sh --version <ver> --overlay deltas/overlay [--overlay deltas/overlay-3.4.3]  (javac; run by user)
-#   python3 tools/lwjgl/pack_extras.py --base-tar <tar> --jar lwjgl-<ver>.jar=<built jar> (assemble the single modern generation;
-#     since v46 the base tar no longer carries launcher.jar/gson; pass --drop-prefix to retire them if present)
-# [HISTORICAL v15–v37, removed 2026-10-01 with MeowLauncher] launcher.jar = clean-room meow.launcher; gson shaded to meow.gson. Reproduce:
-#   sh tools/meow-launcher/build_meow_launcher.sh  (javac; run by user) then
-#   sh tools/meow-launcher/finalize_for_meowcraft.sh (shade + swap rawfile tar)
-# gson input = official Maven Central com.google.code.gson:gson:2.13.1 (sha1 matches the
-#   published .sha1) [HISTORICAL: gson no longer shipped since 2026-10-01]:
-94855942d4992f112946d3de1c334e709237b8126d8130bf07807c018a4a2120  (input) gson-2.13.1.jar [Maven Central official; sha1 853ce06c11316b33a8eae5e9095da096a9528b8f]
-# 5f93d247d7d242b6ebaf15a39832370cfe6334e4030d511bb2501ffa8eab7f9b  lwjgl-3.3.3.jar [REMOVED 2026-09-14 (v25); was v22: GLCapabilities reportMissing fix; 4076 classes]
-970dbec847d2736d55a1a8a60ef8690592e0722d0da31fb5ab59845c2d7db606  lwjgl-3.4.3.jar [v32: window-focus polling in the GLFW stub (tools/lwjgl/deltas); plus GL_VERSION-derived version groups, honest guards, capability-mask interface, NUL-safe self-evidence; 6185 classes; 12,953,332 B; supersedes ed786df8 (v31)]
-2c50c03b616080f788b518c456e0e879939cd2d4abc7b719cef4a6ea6c72292e  launcher.jar [HISTORICAL (removed from bundle 2026-10-01, v46; kept for archaeology) | v37 2026-09-29: **删掉继承自 Pojav 血统的"替用户关 Forge splash"策略**（原 `meowcraft.internal.keepForgeSplash` + 写 `<gameRoot>/config/splash.properties`）—— 该机制在实例隔离布局下**从未生效**（FML 读的是 CWD 相对路径）、**写游戏目录违反兼容铁律**、**HMCL 也不这么做**（只加两条 `-Dfml.ignore*`）；真问题已由 LWJGL2 shim 的 share 修复解决（实机 `shared ctx created` ✓，splash 正常）；**19,667 B**（= tar 内 **着色后**件；构建产物 19,685 B → `finalize` 再做一次 `com.google.gson→meow.gson` 重着色 ⇒ 19,667 B）；supersedes 46630f26 (v33 2026-09-29: 重编为 **--release 8**（class 52），19,869 B。理由＝**共享件地线规则**：launcher.jar 是**两套 JRE 共用**件，必须能在**最老那套**上加载 —— legacy 套 OpenJDK 8 只认 ≤52，而 `MeowClassLoader` 由 `-Djava.system.class.loader` 在 **VM 初始化早期**加载 ⇒ class 61 直接 `UnsupportedClassVersionError`（2026-09-29 真机，见 tools/meow-launcher/build_meow_launcher.sh 头注释）；supersedes 72426aca (v32 = --release 17, 21,191 B); v32: rebuilt in db34081 (Vulkan bring-up: ArgBuilder + MeowLauncher; v26 was 21,125 B); pipeline = build_meow_launcher.sh (javac, user-run) -> pack_jar.py -> relocate_gson.rewrite_jar; clean-room meow.launcher: 21 classes (含 `MeowLauncher$1` 等内部类; 口径 = `unzip -l | grep -c '\.class$'`); no Pojav/GPL; shaded meow.gson; v23: offline UUID derived in Java + userType=msa; reproducible byte-for-byte with javac 17.0.13 + tools/meow-launcher/{build_meow_launcher.sh, finalize_for_meowcraft.sh} (same src + gson 2.13.1); recompute: tar -xOf entry/src/main/resources/rawfile/meowcraft_extras.tar.gz ./launcher.jar | sha256sum]
-efedc694f8d6bc780ec22934cd28153f39e6effe550b7d3e0706f2920eb1e1c1  gson-for-launcher.jar [HISTORICAL (removed from bundle 2026-10-01, v46) | v26: script-produced (relocate_gson.py) so the digest matches the pipeline; no Multi-Release claim; shaded com.google.gson -> meow.gson; 278,897 B]
-# bundled ASM 9.9.1 (5 org.ow2.asm artifacts; extracted to <cacheDir>/mc-cp/<instance>/asm9/) [v45 2026-09-30]
-#   source = Maven Central, official, downloaded 2026-09-30 (each published .sha1 fetched from
-#   the SAME URL + ".sha1" and matched); full URLs (per artifact, <artifact> = asm / asm-analysis /
-#   asm-commons / asm-tree / asm-util):
-#     https://repo1.maven.org/maven2/org/ow2/asm/asm/9.9.1/asm-9.9.1.jar
-#     https://repo1.maven.org/maven2/org/ow2/asm/asm-analysis/9.9.1/asm-analysis-9.9.1.jar
-#     https://repo1.maven.org/maven2/org/ow2/asm/asm-commons/9.9.1/asm-commons-9.9.1.jar
-#     https://repo1.maven.org/maven2/org/ow2/asm/asm-tree/9.9.1/asm-tree-9.9.1.jar
-#     https://repo1.maven.org/maven2/org/ow2/asm/asm-util/9.9.1/asm-util-9.9.1.jar
-#   (all 5 are modular jars (module-info) whose module names are unchanged
-#   from 9.7.1 -> 9.9.1 (so --add-modules ALL-MODULE-PATH resolution is unaffected); each is byte-identical
-#   (cmp) to stuffs/test-forge/libraries/org/ow2/asm/<artifact>/9.9.1/<artifact>-9.9.1.jar; a per-artifact
-#   source/sha1/sha256/size table is in provenance-master.md section 4.2)
+# lwjgl-3.4.3 = Maven release + clean-room overlay; asm9 = Maven Central 9.9.1
+970dbec847d2736d55a1a8a60ef8690592e0722d0da31fb5ab59845c2d7db606  lwjgl-3.4.3.jar [window-focus polling in the GLFW stub (tools/lwjgl/deltas); plus GL_VERSION-derived version groups, honest guards, capability-mask interface, NUL-safe self-evidence; 6185 classes; 12,953,332 B]
 6f3828a215c920059a5efa2fb55c233d6c54ec5cadca99ce1b1bdd10077c7ddd  asm9/asm-9.9.1.jar [org.ow2.asm:asm:9.9.1; Maven Central official; published sha1 2ceea6ab43bcae1979b2a6d85fc0ca429877e5ab; 126,252 B; module org.objectweb.asm]
 6260bffc8ec008dd1b713702c7994e2c94d188a3da5bef9e87278a16df6a7522  asm9/asm-analysis-9.9.1.jar [org.ow2.asm:asm-analysis:9.9.1; Maven Central official; published sha1 1ab8d9316ef7a67240087919a708246c37ed1660; 35,170 B; module org.objectweb.asm.tree.analysis]
 c2319e014ce7199f2b7f7d56d6bb991863168c3f4b6cd6c9f542a4937ef7ef88  asm9/asm-commons-9.9.1.jar [org.ow2.asm:asm-commons:9.9.1; Maven Central official; published sha1 ab35de4c537184a09339069f1a3b3aacf2289149; 75,010 B; module org.objectweb.asm.commons]
 0f3555096b720b820bbacab0b515589bee0200bee099bda14c561738ae837ba1  asm9/asm-tree-9.9.1.jar [org.ow2.asm:asm-tree:9.9.1; Maven Central official; published sha1 b6b1b3366296163b4b1f540731aad0a2baa484d8; 51,963 B; module org.objectweb.asm.tree]
 c5ebbbeaf68126af094b42fa4800f59bc4413abd02d95b9aefad722cd257e207  asm9/asm-util-9.9.1.jar [org.ow2.asm:asm-util:9.9.1; Maven Central official; published sha1 e51f5b0ae0b0c1960687ae970a2a3434d39d8abb; 94,643 B; module org.objectweb.asm.util]
 ## rawfile bundles
-7c8aa39203ed3bf2c81165a8ac6e2a76195468bcd8a11e1b1267fa9ce60dad07  entry/src/main/resources/rawfile/meowcraft_extras.tar.gz [v46 2026-10-01: **摘除 `launcher.jar`/`gson-for-launcher.jar`**（随方案 A「MeowLauncher 退役」）⇒ **EXTRAS_VERSION 升 `20261001-drop-meow-launcher`**；**6 members** = lwjgl-3.4.3 (970dbec8…, 12,953,332 B) + asm9/{asm-9.9.1 (6f3828a2…), asm-analysis-9.9.1 (6260bffc…), asm-commons-9.9.1 (c2319e01…), asm-tree-9.9.1 (0f355509…), asm-util-9.9.1 (c5ebbbea…)}；**12,403,320 B**；**自证**：`tar -tzf` 6 成员 + `tar -xOf ./<member>|sha256sum` 逐条与本文件一致（6/6）；supersedes cb0c0918 (v45 2026-09-30: 换入**5 件随包 ASM 9.9.1**（`asm9/` 子目录；见上方 v45 段）⇒ **EXTRAS_VERSION 升 `20260930-bundled-asm-9.9.1`**；8 members = lwjgl-3.4.3 (970dbec8…, 12,953,332 B) + launcher (2c50c03b…) + gson-for-launcher (efedc694…) + asm9/{asm-9.9.1 (6f3828a2…), asm-analysis-9.9.1 (6260bffc…), asm-commons-9.9.1 (c2319e01…), asm-tree-9.9.1 (0f355509…), asm-util-9.9.1 (c5ebbbea…)}；12,674,361 B；**自证**：`tar -tzf` 8 成员 + `tar -xOf ./<member>|sha256sum` 逐条与本文件一致 + **2× 重建 `cmp` 一致**；supersedes 49f13960 (v37 2026-09-29: 换入**删掉 splash 策略**的 launcher.jar（着色后 `2c50c03b…`, 19,667 B）⇒ **EXTRAS_VERSION 升 `20260929-launcher-no-splash-policy`**；3 jars = lwjgl-3.4.3 (970dbec8…, 12,953,332 B) + launcher (2c50c03b…) + gson-for-launcher (efedc694…, 278,897 B); 12,309,585 B; **自证**：`tar -tzf`/`tar -xOf ./<member> | sha256sum` 三者与本文件逐条一致；supersedes e3ebd6b9 (v36, 12,309,853 B); v36 2026-09-29: 换入 **--release 8** 的 launcher.jar（class 52；见上 v36 段）⇒ EXTRAS_VERSION 升 `20260929-jre8-compat`（设备会重解压）；3 jars = lwjgl-3.4.3 (970dbec8…, 12,953,332 B) + launcher (46630f26…, 19,869 B) + gson-for-launcher (efedc694…, 278,897 B); 12,309,853 B; supersedes 9864025b (v33, 12,310,999 B); recompute: sha256sum entry/src/main/resources/rawfile/meowcraft_extras.tar.gz]
-# meow_jre.tar.gz: official OpenJDK 26.0.2.1 data, jlink-slimmed (43 modules; tools/jre26/linux_slim_jre.sh)
-#   + deterministic pack (tools/jre26/pack_jre_data.py). Data token = 26.0.2.1+1-7-r2 (Paths.JRE_DATA_TOKEN / kJreDataToken).
-# v39 2026-09-27: + 36 jdk.zipfs classes (lib/patch/jdk.zipfs/**, 40 entries) -- ZipFileSystem best-effort chmod
-#   (the phone game dir is on user storage / FUSE-hmdfs, which REJECTS chmod -> Fabric tinyremapper remap EPERM
-#   -> first launch died; jar bytes unchanged). Built by tools/jre26/linux_build_zipfs_patch.sh (36 .class, no
-#   module-info.class), delivered via launcher --patch-module jdk.zipfs=<jreHome>/lib/patch/jdk.zipfs (JDK official
-#   mechanism; lib/modules jimage + jmods + module hashes untouched). Patch body: tools/jre26/patches/
-#   zipfs_chmod_best_effort.py (ref/jdk26u .../jdk/nio/zipfs/ZipFileSystem.java:2076-2078).
-#   data tar 41,158,374 -> 41,233,017 B (35 -> 71 files); token r1 -> r2. Real device: phone Fabric launches and
-#   installs mods OK (user-confirmed). Full rationale/deploy/revert: tools/jre26/README.md section 6.
-f17974a51a53bbdaeecdedf0230046375664137cfdb36653425864491a877fb3  entry/src/main/resources/rawfile/meow_jre.tar.gz [v39 2026-09-27: 41,233,017 B / 71 files = 35 base + 36 jdk.zipfs patch classes; supersedes v24 4f9c2b87.. / 41,158,374 B]
+# meowcraft_extras.tar.gz (EXTRAS_VERSION 20261001-drop-meow-launcher) / meow_jre.tar.gz (token 26.0.2.1+1-7-r2)
+7c8aa39203ed3bf2c81165a8ac6e2a76195468bcd8a11e1b1267fa9ce60dad07  entry/src/main/resources/rawfile/meowcraft_extras.tar.gz [6 members = lwjgl-3.4.3 + asm9/{asm,asm-analysis,asm-commons,asm-tree,asm-util}-9.9.1; 12,403,320 B]
+f17974a51a53bbdaeecdedf0230046375664137cfdb36653425864491a877fb3  entry/src/main/resources/rawfile/meow_jre.tar.gz [41,233,017 B / 71 files = 35 base + 36 jdk.zipfs patch classes; token 26.0.2.1+1-7-r2]

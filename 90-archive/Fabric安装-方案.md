@@ -3,6 +3,7 @@
 > 已归档（2026-10-01；因为 Fabric 安装结论已并入现役档（安装链-总览 §2）；现役口径见 [`安装链-总览.md`](../20-design/launch/安装链-总览.md)）。
 
 > 日期：2026-09-13 ｜ 状态：**已提交（`e9234c3` feat + 文档 `c4b5e7d`，均为 HEAD `8c62c0d` 祖先）并实机验证（用户 2026-09-15 确认）** ｜ 形态：**B. HMCL 补丁式（单实例）**
+> ⚠️ **该"状态"为当时记录，非现状**；仅存档，勿引用。
 > 依据：HMCL 源码（`download/fabric/*`、`download/{BMCLAPIDownloadProvider,DefaultGameBuilder,DefaultDependencyManager}.java`）+ 自家安装代码调研 + Fabric 官方 meta 实测。
 > 相关：[`Fabric支持-调研.md`](../20-design/launch/Fabric支持-调研.md)（启动机制）、[`Fabric支持-改动方案.md`](Fabric支持-改动方案.md)（启动改动）。
 > 本文为决策记录 / 证据存档，**不复述现状**；当前状态见 [现状基线.md §5 第 17 条](../00-current/现状基线.md)。

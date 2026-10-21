@@ -52,17 +52,15 @@ JVM org.lwjgl.openal → System.loadLibrary("openal") → meowjre/libs/arm64/lib
 
 ## 5. 分发与部署
 
-- 后端编入同一 `libopenal.so`（`libs/meowlwjgls/libs/arm64-v8a/` → 并入 `meowjre` HSP）。
-- 部署：`devecocli run --module entry meowjre`。
+产物与部署同 [`openal-ohos.md`](openal-ohos.md) §5（同一个 `libopenal.so`）。
 - A/B 与回退：`ALSOFT_DRIVERS=opensl`（强制 OpenSL）/ `=ohaudio`（强制 OHAudio）；
   或 `git checkout -- libs/meowlwjgls/libs/arm64-v8a/libopenal.so` 回到上一版。
 
 ## 6. 版本范围
 
-- OpenAL Soft **1.24.3**（2026-09-10 由 1.23.1 升级；动机 = MC ≥1.22 需要 **`ALC_SOFT_system_events`**，
-  该扩展 1.24.0 才引入）。OHAudio 头/库来自 OHOS SDK（本项目 API 23；设备 API 26）。
-- 两个补丁器已做**版本容错**（同时认 1.23.x / 1.24.x 锚点）；OHAudio 后端**源已按 1.24 API 改写**
-  （`open(std::string_view)`、`enumerate`、fmt、`DeviceBase` 的 `m*` 成员）。
+基线版本与升级动机见 [`openal-ohos.md`](openal-ohos.md) §6（OpenAL Soft 1.24.3）。
+OHAudio 头/库来自 OHOS SDK（本项目 API 23；设备 API 26），后端源已按 1.24 API 改写
+（`open(std::string_view)`、`enumerate`、fmt、`DeviceBase` 的 `m*` 成员）。
 - ⚠️ 1.24.x 的导出受 `-Wl,--version-script=libopenal.version`（`local: *`）与 `ALC_API` 双重控制：
   `alcEventIsSupportedSOFT`/`alcEventControlSOFT`/`alcEventCallbackSOFT` 上游**两处都缺** → 默认被裁，
   但我们需导出给 MC（LWJGL dlsym）。故新增第三个补丁器
@@ -71,10 +69,7 @@ JVM org.lwjgl.openal → System.loadLibrary("openal") → meowjre/libs/arm64/lib
 
 ## 7. 复现
 
-```sh
-sh Harmomeow-Craft-Launcher/tools/openal/rebuild_for_meowcraft.sh   # 自动：OpenSL 移植 + OHAudio 后端 + 构建
-```
-
+构建脚本同 [`openal-ohos.md`](openal-ohos.md) §7（`rebuild_for_meowcraft.sh` 自动做 OpenSL 移植 + OHAudio 后端 + 构建）。
 - 产物 sha256（strip 后）：`fececaeea7f785c8f47a9b4f804421b3922524f0c2df87419d21256a680b2d6c`（OpenAL Soft **1.24.3**，
   33 `alc*` + 176 `al*` 导出，含 `ALC_SOFT_system_events`）；同 tag + SDK + 构建路径下可复现。
   （历史：1.23.1 版 sha `e56a5b88…` / `9c2ae446…`，已退役。）

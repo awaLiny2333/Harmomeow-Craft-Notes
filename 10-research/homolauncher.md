@@ -1,4 +1,4 @@
-> 说明（2026-09-15）：HOML 血统已全部清除（见 [`../00-current/现状基线.md`](../00-current/现状基线.md) §3/§5）；本文是**唯一** HOML 集中档案，仅作外部学习参考。
+> 说明（2026-09-15）：HOML 血统已全部清除（见 [`../00-current/现状基线.md`](../00-current/现状基线.md) §3/§5）；本文是 HOML 的主要集中档案，仅作外部学习参考（跨启动器对照另见 [`pojav系-启动渲染对照.md`](pojav系-启动渲染对照.md)）。
 
 # HomoLauncher (HOML) 深度分析
 
@@ -69,6 +69,7 @@ this.bridge = ns.homl_bridge            // 拿到原生桥
 
 `launch()` 构造一串 JVM 参数（`overridableArguments`），核心内容包括：
 
+- **OS 伪装**：`-Dos.name=Linux`、`-Dos.version=harmonyos`、`-Dcpu.name=harmonyos`（过 1.21.10 的 OS rules）
 - **路径类**：`-Djava.home`、`-DPOJAV_HOME`、`-DPOJAV_GAME_DIR`、`-Duser.home`、`-DBUNDLE_PATH`
 - **原生库**：`-Djna.boot.library.path`、`-Djna.nosys=false`
 - **LWJGL 渲染**（见渲染章节）：
@@ -164,6 +165,7 @@ export interface HOMLBridge {
 
 `entry/src/main/resources/resfile/` 下是与游戏运行有关的关键资源：
 
+- game/versions.txt：受支持版本列表，列到 **1.21.10**。
 - `app_runtime/caciocavallo*/`：Caciocavallo AWT 移植 jar（cacio-tta、cacio-ctc）
 - `game/MioLaunchWrapper.jar`、`MioLibPatcher.jar`、`HMCLTransformerDiscoveryService-1.0.jar`：启动/补丁辅助
 - `game/log4j2-1.7.xml`、`log4j2-1.12.xml`：日志配置

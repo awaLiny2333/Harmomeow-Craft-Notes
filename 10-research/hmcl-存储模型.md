@@ -377,7 +377,7 @@ HMCL 能跨 Win/Mac/Linux/FreeBSD + 多架构的关键：
 
 ### 12.9 两个游戏内库
 
-- `HMCLTransformerDiscoveryService`：实现 ModLauncher 的 `ITransformerDiscoveryService` SPI，经 `-Dhmcl.transformer.candidates` 注入候选 jar。
+- `HMCLTransformerDiscoveryService`：实现 ModLauncher 的 `ITransformerDiscoveryService` SPI，经 `-Dhmcl.transformer.candidates` 注入候选 jar（对应 HomoLauncher resfile 里的 `HMCLTransformerDiscoveryService-1.0.jar`）。
 - `HMCLMultiMCBootstrap`：MultiMC 实例引导。
 
 ### 12.10 元数据与运行要求
@@ -394,6 +394,18 @@ HMCL 能跨 Win/Mac/Linux/FreeBSD + 多架构的关键：
 6. **数据模型完整性**：`game/` 的结构化模型可作为鸿蒙侧 `MinecraftVersion` 模型的扩充蓝本。
 
 ---
+
+### 12.12 旧档补充事实（原《HMCL 深度分析》）
+
+- **平台矩阵**：ARM64 Win/Linux/macOS 全支持；ARM32 Linux 有限；RISC-V64/LoongArch64 Linux 支持。
+  游戏兼容按 OS×架构列表：ARM64 Linux 上 MC 1.8–26.2 可用，1.19+ 为官方支持面。
+- **参数细节**：`Java<8` 用 `-XX:PermSize`；编码参数在 `java<19`（`sun.stdout/stderr.encoding`）与 `19+`
+  （`stdout/stderr.encoding`）分叉；macOS 加 `-Xdock:*`；非 Windows 加 `-Duser.home`；渲染器差异化 env。
+- **占位符全集**：`${auth_player_name}` / `${auth_session}` / `${classpath}` / `${natives_directory}` /
+  `${version_name}` 等，由 `Arguments.parseArguments` + `CompatibilityRule` 填充。
+- **natives 解压**：按 `ExtractRules`，跳过 GLFW/SDL/OpenAL；`makeLaunchScript()` 可导出 `.bat/.sh/.ps1`。
+- **与 HOML 的关系**：HOML 把同一套思想简化为 ArkTS 的 `replaceAllArgs`；HMCL 的规则引擎更完整。
+- **元数据**：最低 Java 17、推荐 21；版本号读 jar manifest 的 `hmcl.version`。
 
 ## 13. 证据索引
 
