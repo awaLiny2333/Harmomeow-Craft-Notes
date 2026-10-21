@@ -1,0 +1,11 @@
+# OS / editor junk
+.DS_Store
+Thumbs.db
+*.swp
+*~
+.idea/
+.vscode/
+.arts/
+
+# python bytecode cache (notes-tools/*.py)
+__pycache__/
