@@ -136,11 +136,12 @@ getstatic ContextCapabilities.GL_NV_fog_distance ; ifeq → 跳过整段（我�
 
 ## 7. 我们的 delta（现状）
 
-| 文件 | 内容 | 建议 |
-|---|---|---|
-| `deltas/glcore/src/gl/fog.c` | 雾追踪（§3 三个开关） | **保留**（下轮定位要用） |
-| `…/fog.c` 里的"雾变化→推送 uniform" + `…/fpe.c` 的 `fpe_UploadFogUniforms()/meow_fpe_fog_push()` | 冗余（§5） | **建议回退**，缩小 delta 面与未来合并成本 |
-| `…/fpe.h` | 随上游整份覆盖（内容未改） | 回退时一并去掉 |
+| 文件 | 内容 |
+|---|---|
+| `deltas/glcore/src/gl/fog.c` | 雾追踪（§3 开关）、`MEOW_FOG_FORCE_RADIAL`（默认开）、build tag |
+| `deltas/glcore/src/gl/fpe.c` | 恒等雾归一化（§11）+ FPE 诊断 |
+| `deltas/glcore/src/gl/fpe_shader.c` | 随上游整份覆盖 + 诊断（前 2 份顶点 shader dump） |
+| `deltas/glcore/src/gl/fpe.h` | 随上游整份覆盖（内容未改） |
 
 > ⚠️ delta 是**整份覆盖**（`cp -a "$DELTA/." "$SRC_USE/"`）⇒ 覆盖到的文件在上游变动时需**手工合并**。
 
@@ -154,16 +155,29 @@ getstatic ContextCapabilities.GL_NV_fog_distance ; ifeq → 跳过整段（我�
 5. `LIBGL_NOPSA=1` ⇒ 排除预编译档（预期：无差别）。
 6. 回归：Fog: Fancy / Off 仍正常（任何改动后都要过这条）。
 
-## 9. 产物（当前装机件）
+## 9. 产物
 
-`stuffs/research/gl4es/out-fogfix/libgl4es.so`，sha256 `13d74d5c677b411ef708ec895daf0483353746bcb12acea3e4c617711f7a0c0e`，1,256,312 B
-⇒ 已装 `libs/meowlwjgls/libs/arm64-v8a/libgl4es.so`（+ `natives.manifest`）。构建/装机命令与开关见
-`Harmomeow-Craft-Launcher/tools/gl4es/README.md`。
-**未做 2× 干净重建的复现校验**（按铁律不得称"可复现"）。
+随包件 hash / tag / `delta-content-sha256` / 验收见 [`../../00-current/现状基线.md`](../../00-current/现状基线.md) §5 第 26 条；
+构建命令与运行期开关见 `Harmomeow-Craft-Launcher/tools/gl4es/README.md`。
 
 ## 10. 相关文件
 
 - 上游：`ref/gl4es/src/gl/{fog.c,fpe.c,fpe_shader.c,listdraw.c,listrl.c,drawing.c,uniform.c,program.c,program.h,loader.h,shaderconv.c}`
-- 我们的 delta：`tools/gl4es/deltas/glcore/src/gl/{fog.c,fpe.c,fpe.h}`
+- 我们的 delta：`tools/gl4es/deltas/glcore/src/gl/{fog.c,fpe.c,fpe.h,fpe_shader.c}`
 - 同一实例的启动期崩溃（splash 的第二上下文）：[`../launch/Forge-splash-崩溃根因与共享上下文修复.md`](../launch/Forge-splash-崩溃根因与共享上下文修复.md)
 - gl4es legacy 落地背景：[`legacy渲染-gl4es-落地方案.md`](legacy渲染-gl4es-落地方案.md)
+
+## 11. 1.16.5 主菜单文字全黑（已修）
+
+**现象**：MC 1.16.5 + gl4es（FPE）主菜单文字整片不可见；进一次世界后恢复。桌面 GL、1.7.10、1.20.6 正常。
+
+**取证**（`MEOW_FPE_TRACE=1` + 用户导出日志）：字形绘制 = `prog=22`（256×256 图集、`at=1 ref=0.0039`、96 quad），其 FPE 状态 `fog=1`、`mode=GL_EXP`、`density=0`；`[fogshader] prog=22` 显示雾代码**确实被生成** ⇒ `fog_c≈2000`（GUI 的 eye-z）上 `FogF` 被算成 0，颜色被替换成雾色（黑）。
+
+**为何 `density==0` 还会坏**：EXP/EXP2 在 density=0 时数学上是恒等（`FogF=1`），但本栈上 density 未如实到达 GPU ⇒ 实际按非零密度算。机制未定；**修法与根因无关**（恒等即可省略）。
+
+**两级坑**：
+
+1. 只在 `fpe_ReleventState()` 里归一化（`dest->fog=0`）**不够**：程序按 `fpe_state_t` 缓存（无 density 字段），而生成器读的是**原始** `glstate->fpe_state` ⇒ 雾代码照旧生成（实测 `[fogshader] .fog=1`，文字仍黑）。
+2. 生成器必须消费归一化后的 `state`（与 `fpe_CustomShader(&state)` 同源）；`[fogshader]` / `[meowshader]` 诊断也改成同源重算，否则 dump 会继续误导。
+
+**落地**：`fpe.c` 条件 `fixed && fog && !vertex_prg_enable && !fragment_prg_enable && mode∈{EXP,EXP2} && density==0`（`MEOW_FOG_NOOP=0` 回退上游）；`fpe_shader.c` 4 处回到上游 `if(fog)`。**不 bump `CACHE_VERSION`**：旧 PSA 的 fog=1 条目只会在 density>0 的查找中命中。

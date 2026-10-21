@@ -105,4 +105,4 @@
   3. `initialize_gl4es()` 必须在 GLES context **已 current 之后**调用（桥在 `egl_bind()` 里做）。
 - 平台事实：该 2in1 的 GL/GLES 栈 = **Mesa（gallium 25.0.1）+ Zink**（`libEGL_mesa.so`、`const.graphic.gl_to_vk_support=true`），
   桌面 GL 明确是 Zink；gl4es 之所以有效，是它用自己的 FPE 在 GLES 上仿真固定管线，**绕开了 Zink 的 compat 固定管线**。
-- 未解决（独立问题，另记）：**1.16.5 游戏内无文字**（启动一次游戏后文字恢复）；尚未归因到 LWJGL/gl4es 的确定项。
+- **1.16.5 游戏内无文字**：已修（EXP/EXP2 + `density==0` 的恒等雾被渲染成雾色）；取证与两级坑见 [`gl4es固定管线雾-取证与修复.md`](gl4es固定管线雾-取证与修复.md) §11。
